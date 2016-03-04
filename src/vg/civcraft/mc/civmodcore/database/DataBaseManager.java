@@ -16,8 +16,14 @@ public abstract class DataBaseManager {
 		loadPreparedStatements();
 	}
 
+	/**
+	 * Creates tables or updates them if needed
+	 */
 	public abstract void prepareTables();
 
+	/**
+	 * Loads the prepared statements used by this class
+	 */
 	public abstract void loadPreparedStatements();
 
 	public boolean isConnected() {
