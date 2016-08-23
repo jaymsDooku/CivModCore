@@ -2,19 +2,21 @@ package vg.civcraft.mc.civmodcore;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.logging.Logger;
 
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.ConsoleCommandSender;
+import org.bukkit.configuration.serialization.ConfigurationSerialization;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.mcstats.Metrics;
+
 import vg.civcraft.mc.civmodcore.annotations.ConfigOption;
 import vg.civcraft.mc.civmodcore.chatDialog.ChatListener;
 import vg.civcraft.mc.civmodcore.chatDialog.DialogManager;
 import vg.civcraft.mc.civmodcore.command.CommandHandler;
 import vg.civcraft.mc.civmodcore.interfaces.ApiManager;
 import vg.civcraft.mc.civmodcore.inventorygui.ClickableInventoryListener;
+import vg.civcraft.mc.civmodcore.itemHandling.ItemWrapper;
 import vg.civcraft.mc.civmodcore.itemHandling.NiceNames;
 
 public abstract class ACivMod extends JavaPlugin {
@@ -50,17 +52,11 @@ public abstract class ACivMod extends JavaPlugin {
 		}
 		String option = args[0];
 		String value = null;
-		String subvalue = null;
 		boolean set = false;
-		boolean subvalue_set = false;
 		String msg = "";
 		if (args.length > 1) {
 			value = args[1];
 			set = true;
-		}
-		if (args.length > 2) {
-			subvalue = args[2];
-			subvalue_set = true;
 		}
 		ConfigOption opt = config_.get(option);
 		if (opt != null) {
@@ -121,6 +117,7 @@ public abstract class ACivMod extends JavaPlugin {
 			instance.registerEvents();
 			new NiceNames().loadNames();
 			new DialogManager();
+			ConfigurationSerialization.registerClass(ItemWrapper.class);
 		}
 	}
 
@@ -133,9 +130,6 @@ public abstract class ACivMod extends JavaPlugin {
 		ConsoleCommandSender console = getServer().getConsoleSender();
 		console.addAttachment(this, getPluginName().toLowerCase() + ".console", true);
 	}
-//    public boolean isInitiaized() {
-//      return global_instance_ != null;
-//    }
 
 	public boolean toBool(String value) {
 		if (value.equals("1") || value.equalsIgnoreCase("true")) {

@@ -48,7 +48,7 @@ import org.bukkit.inventory.PlayerInventory;
  */
 public class ItemMap {
 
-	private HashMap<ItemStack, Integer> items;
+	private HashMap<ItemWrapper, Integer> items;
 
 	private int totalItems;
 
@@ -92,6 +92,55 @@ public class ItemMap {
 		items = new HashMap<>();
 		addAll(stacks);
 	}
+	
+	/**
+	 * Constructor to create an item map based on an array of ItemStacks
+	 * 
+	 * @param item Stacks to add to the map
+	 */
+	public ItemMap(ItemStack [] item) {
+		items = new HashMap<>();
+		totalItems = 0;
+		for(ItemStack is : item) {
+			addItemStack(is);
+		}
+	}
+	
+	public void addItemWrapper(ItemWrapper wrapper, int amount) {
+		Integer i;
+		if ((i = items.get(wrapper)) != null) {
+			items.put(wrapper, i + amount);
+		} else {
+			items.put(wrapper, amount);
+		}
+		totalItems += amount;
+	}
+	
+	/**
+	 * Removes the given amount of the given ItemWrapper from this instance.
+	 * @param wrapper Wrapper to remove
+	 * @param amount Amount to remove
+	 * @return Amount of items that could not be removed
+	 */
+	public int removeItemWrapper(ItemWrapper wrapper, int amount) {
+		Integer value = items.get(wrapper);
+		if (value != null) {
+			int newVal = value - amount;
+			totalItems -= amount;
+			if (newVal > 0) {
+				items.put(wrapper, newVal);
+				return 0;
+			} else {
+				int itemAmountNotRemoved = Math.abs(newVal);
+				totalItems += itemAmountNotRemoved;
+				items.remove(wrapper);
+				return itemAmountNotRemoved;
+			}
+		}
+		else {
+			return amount;
+		}
+	}
 
 	/**
 	 * Clones the given itemstack, sets its amount to one and checks whether a
@@ -104,19 +153,11 @@ public class ItemMap {
 	 */
 	public void addItemStack(ItemStack input) {
 		if (input != null) {
-			//log().info("Adding {0} as ItemStack", input.toString());
-			ItemStack is = createMapConformCopy(input);
-			//log().info("  Conform Copy: {0}", is.toString());
-			if (is == null) {
+			ItemWrapper wrapper = createMapConformItemWrapper(input);
+			if (wrapper == null) {
 				return;
 			}
-			Integer i;
-			if ((i = items.get(is)) != null) {
-				items.put(is, i + input.getAmount());
-			} else {
-				items.put(is, input.getAmount());
-			}
-			totalItems += input.getAmount();
+			addItemWrapper(wrapper, input.getAmount());
 		}
 	}
 
@@ -128,20 +169,12 @@ public class ItemMap {
 	 *
 	 * @param input ItemStack to remove
 	 */
-	public void removeItemStack(ItemStack input) {
-		ItemStack is = createMapConformCopy(input);
-		if (is == null) {
-			return;
+	public int removeItemStack(ItemStack input) {
+		ItemWrapper wrapper = createMapConformItemWrapper(input);
+		if (wrapper == null) {
+			return input.getAmount();
 		}
-		Integer value = items.get(is);
-		if (value != null) {
-			int newVal = value - input.getAmount();
-			if (newVal > 0) {
-				items.put(is, newVal);
-			} else {
-				items.remove(is);
-			}
-		}
+		return removeItemWrapper(wrapper, input.getAmount());
 	}
 
 	/**
@@ -150,16 +183,22 @@ public class ItemMap {
 	 *
 	 * @param input ItemStack to remove
 	 */
-	public void removeItemStackCompletly(ItemStack input) {
-		ItemStack is = createMapConformCopy(input);
-		if (is != null) {
-			items.remove(is);
+	public boolean removeItemStackCompletly(ItemStack input) {
+		ItemWrapper wrapper = createMapConformItemWrapper(input);
+		if (wrapper == null) {
+			return false;
 		}
+		Integer amount = items.get(wrapper);
+		if (amount == null) {
+			return false;
+		}
+		removeItemWrapper(wrapper, amount);
+		return true;
 	}
 
 	public int hashCode() {
 		int res = 0;
-		for (Entry<ItemStack, Integer> entry : items.entrySet()) {
+		for (Entry<ItemWrapper, Integer> entry : items.entrySet()) {
 			res += entry.hashCode();
 		}
 		return res;
@@ -184,11 +223,18 @@ public class ItemMap {
 	 * @param im ItemMap to merge
 	 */
 	public void merge(ItemMap im) {
-		for (Entry<ItemStack, Integer> entry : im.getEntrySet()) {
-			addItemAmount(entry.getKey(), entry.getValue());
+		for (Entry<ItemWrapper, Integer> entry : im.getEntrySet()) {
+			addItemWrapper(entry.getKey(), entry.getValue());
 		}
 	}
 
+	/**
+	 * Updates this ItemMap to make its content identical with the given inventory. Any preexisting items
+	 * will be removed. After this method is called, further changes to the inventory will NOT
+	 * update this instance
+	 * 
+	 * @param inv Inventory to base instance on
+	 */
 	public void update(Inventory inv) {
 		items = new HashMap<>();
 		totalItems = 0;
@@ -200,6 +246,10 @@ public class ItemMap {
 		}
 	}
 
+	/**
+	 * Adds all items from a given entry set to this instance
+	 * @param entries Entries to add
+	 */
 	public void addEntrySet(Set<Entry<ItemStack, Integer>> entries) {
 		for (Entry<ItemStack, Integer> entry : entries) {
 			addItemAmount(entry.getKey(), entry.getValue());
@@ -222,119 +272,17 @@ public class ItemMap {
 	}
 
 	/**
-	 * Gets a submap of this instance which contains all stacks with the same
-	 * material as the given one and their respective amounts
-	 *
-	 * @param m Material to search for
-	 * @return New ItemMap with all ItemStack and their amount whose material
-	 * matches the given one
-	 */
-	public ItemMap getStacksByMaterial(Material m) {
-		ItemMap result = new ItemMap();
-		for (ItemStack is : items.keySet()) {
-			if (is.getType() == m) {
-				result.addItemAmount(is.clone(), items.get(is));
-			}
-		}
-		return result;
-	}
-
-	public ItemMap getStacksByMaterial(ItemStack is) {
-		return getStacksByMaterial(is.getType());
-	}
-
-	/**
-	 * Gets a submap of this instance which contains all stacks with the same
-	 * material and durability as the given one and their respective amounts
-	 *
-	 * @param m          Material to search for
-	 * @param durability Durability to search for
-	 * @return New ItemMap with all ItemStack and their amount whose material
-	 * and durability matches the given one
-	 */
-	public ItemMap getStacksByMaterialDurability(Material m, int durability) {
-		ItemMap result = new ItemMap();
-		for (ItemStack is : items.keySet()) {
-			if (is.getType() == m && is.getDurability() == durability) {
-				result.addItemAmount(is.clone(), items.get(is));
-			}
-		}
-		return result;
-	}
-
-	public ItemMap getStacksByMaterialDurability(ItemStack is) {
-		return getStacksByMaterialDurability(is.getType(), is.getDurability());
-	}
-
-	/**
-	 * Gets a submap of this instance which contains all stacks with the same
-	 * material, durability and enchants as the given one and their respective
-	 * amounts
-	 *
-	 * @param m          Material to search for
-	 * @param durability Durability to search for
-	 * @param enchants   Enchants to search for
-	 * @return New ItemMap with all ItemStack and their amount whose material,
-	 * durability and enchants matches the given one
-	 */
-	public ItemMap getStacksByMaterialDurabilityEnchants(Material m,
-			int durability, Map<Enchantment, Integer> enchants) {
-		ItemMap result = new ItemMap();
-		for (ItemStack is : items.keySet()) {
-			if (is.getType() == m && is.getDurability() == durability
-					&& is.getItemMeta() != null
-					&& is.getItemMeta().getEnchants().equals(enchants)) {
-				result.addItemAmount(is.clone(), items.get(is));
-			}
-		}
-		return result;
-	}
-
-	public ItemMap getStacksByMaterialDurabilityEnchants(ItemStack is) {
-		if (is.getItemMeta() != null) {
-			return getStacksByMaterialDurabilityEnchants(is.getType(),
-					(int) is.getDurability(), is.getItemMeta().getEnchants());
-		} else {
-			return getStacksByMaterialDurabilityEnchants(is.getType(),
-					(int) is.getDurability(),
-					new HashMap<Enchantment, Integer>());
-		}
-	}
-
-	/**
-	 * Gets a submap of this instance which contains all stacks with the same
-	 * lore as the given and their respective amount
-	 *
-	 * @param lore Lore to search for
-	 * @return New ItemMap with all ItemStacks and their amount whose lore
-	 * matches the given one
-	 */
-	public ItemMap getStacksByLore(List<String> lore) {
-		ItemMap result = new ItemMap();
-		for (ItemStack is : items.keySet()) {
-			if (is.getItemMeta() != null
-					&& is.getItemMeta().getLore().equals(lore)) {
-				result.addItemAmount(is.clone(), items.get(is));
-			}
-		}
-		return result;
-	}
-
-	/**
-	 * Gets how many items of the given stack are in this map. Be aware that if
-	 * a stack doesnt equal with the given one, for example because of
-	 * mismatched NBT tags, it wont be included in the result
+	 * Gets how many many wrappers, which would accept the given ItemStacks,
+	 * are in this instance
 	 *
 	 * @param is Exact ItemStack to search for
 	 * @return amount of items like the given stack in this map
 	 */
 	public int getAmount(ItemStack is) {
-		ItemMap matSubMap = getStacksByMaterial(is);
 		int amount = 0;
-		for (Entry<ItemStack, Integer> entry : matSubMap.getEntrySet()) {
-			ItemStack current = entry.getKey();
-			if ((is.getDurability() == -1 || is.getDurability() == current
-					.getDurability()) && is.getItemMeta().equals(current.getItemMeta())) {
+		for (Entry<ItemWrapper, Integer> entry : getEntrySet()) {
+			ItemWrapper current = entry.getKey();
+			if (current.fulfillsCriterias(is)) {
 				amount += entry.getValue();
 			}
 		}
@@ -349,14 +297,43 @@ public class ItemMap {
 	}
 
 	/**
-	 * @return How many unique items are stored in this map
+	 * @return How many unique itemwrappers are stored in this map
 	 */
 	public int getTotalUniqueItemAmount() {
 		return items.keySet().size();
 	}
 
-	public Set<Entry<ItemStack, Integer>> getEntrySet() {
-		return ((HashMap<ItemStack, Integer>) items.clone()).entrySet();
+	/**
+	 * @return An entry set of a copy of the underlying map
+	 */
+	@SuppressWarnings("unchecked")
+	public Set<Entry<ItemWrapper, Integer>> getEntrySet() {
+		return ((Map<ItemWrapper, Integer>) items.clone()).entrySet();
+	}
+	
+	/**
+	 * Gets the most specific ItemWrapper contained in this instance, for which the given ItemStack fulfills it's criterias. 
+	 * Most specific means the set of all ItemStacks, which fulfill the criterias of that wrapper is the smallest out of all
+	 * those for which the given ItemStack fullfills all criterias
+	 * 
+	 * @param is ItemStack to search wrapper for
+	 * @return Most specific wrapper found or null if no wrapper accepts the given ItemStack
+	 */
+	public ItemWrapper getMostSpecificWrapper(ItemStack is) {
+		ItemWrapper mostSpecific = null;
+		for(Entry <ItemWrapper, Integer> entry: getEntrySet()) {
+			if (entry.getKey().fulfillsCriterias(is)) {
+				if (mostSpecific == null) {
+					mostSpecific = entry.getKey();
+				}
+				else {
+					if (mostSpecific.isMoreSpecific(entry.getKey())) {
+						mostSpecific = entry.getKey();
+					}
+				}
+			}
+		}
+		return mostSpecific;
 	}
 
 	/**
@@ -369,20 +346,18 @@ public class ItemMap {
 	 */
 	public boolean containedExactlyIn(Inventory i) {
 		ItemMap invMap = new ItemMap(i);
-		for (Entry<ItemStack, Integer> entry : getEntrySet()) {
-			if (!entry.getValue().equals(invMap.getAmount(entry.getKey()))) {
-				return false;
+		ItemMap clone = this.clone();
+		for (Entry<ItemWrapper, Integer> entry : invMap.getEntrySet()) {
+			int amountToRemove = entry.getValue();
+			while (amountToRemove != 0) {
+				ItemWrapper mostSpecific = clone.getMostSpecificWrapper(entry.getKey().getItem());
+				if (mostSpecific == null) {
+					return false;
+				}
+				amountToRemove = clone.removeItemWrapper(mostSpecific, entry.getValue());
 			}
 		}
-		for (ItemStack is : i.getContents()) {
-			if (is == null) {
-				continue;
-			}
-			if (getStacksByMaterial(is).getTotalUniqueItemAmount() == 0) {
-				return false;
-			}
-		}
-		return true;
+		return clone.totalItems == 0;
 	}
 
 	/**
@@ -397,12 +372,18 @@ public class ItemMap {
 	 */
 	public boolean isContainedIn(Inventory i) {
 		ItemMap invMap = new ItemMap(i);
-		for (Entry<ItemStack, Integer> entry : getEntrySet()) {
-			if (entry.getValue() > invMap.getAmount(entry.getKey())) {
-				return false;
+		ItemMap clone = this.clone();
+		for (Entry<ItemWrapper, Integer> entry : invMap.getEntrySet()) {
+			int amountToRemove = entry.getValue();
+			while (amountToRemove != 0) {
+				ItemWrapper mostSpecific = clone.getMostSpecificWrapper(entry.getKey().getItem());
+				if (mostSpecific == null) {
+					return false;
+				}
+				amountToRemove = clone.removeItemWrapper(mostSpecific, entry.getValue());
 			}
 		}
-		return true;
+		return clone.totalItems >= 0;
 	}
 
 	public String toString() {
@@ -423,14 +404,31 @@ public class ItemMap {
 	 * Integer.MAX_VALUE if this instance is empty
 	 */
 	public int getMultiplesContainedIn(Inventory i) {
-		ItemMap invMap = new ItemMap(i);
-		int res = Integer.MAX_VALUE;
-		for (Entry<ItemStack, Integer> entry : getEntrySet()) {
-			int pulledAmount = invMap.getAmount(entry.getKey());
-			int multiples = pulledAmount / entry.getValue();
-			res = Math.min(res, multiples);
+		if (totalItems == 0) {
+			//dont divide by 0 kids
+			return Integer.MAX_VALUE;
 		}
-		return res;
+		ItemMap invMap = new ItemMap(i);
+		ItemMap clone = this.clone();
+		int count = 0;
+		while (true) {
+			//keep looping until empty
+			for (Entry<ItemWrapper, Integer> entry : clone.getEntrySet()) {
+				int amountToRemove = entry.getValue();
+				for(Entry <ItemWrapper, Integer> invEntry : invMap.getEntrySet()) {
+					if (entry.getKey().fulfillsCriterias(invEntry.getKey().getItem())) {
+						amountToRemove = invMap.removeItemWrapper(invEntry.getKey(), amountToRemove);
+						if (amountToRemove == 0) {
+							break;
+						}
+					}
+				}
+				if (amountToRemove != 0) {
+					return count;
+				}
+			}
+			count++;
+		}
 	}
 
 	/**
@@ -440,7 +438,7 @@ public class ItemMap {
 	 */
 	public void multiplyContent(double multiplier) {
 		totalItems = 0;
-		for (Entry<ItemStack, Integer> entry : getEntrySet()) {
+		for (Entry<ItemWrapper, Integer> entry : getEntrySet()) {
 			items.put(entry.getKey(), (int) (entry.getValue() * multiplier));
 			totalItems += (int) (entry.getValue() * multiplier);
 		}
@@ -454,15 +452,13 @@ public class ItemMap {
 	 */
 	public LinkedList<ItemStack> getItemStackRepresentation() {
 		LinkedList<ItemStack> result = new LinkedList<>();
-		for (Entry<ItemStack, Integer> entry : getEntrySet()) {
-			ItemStack is = entry.getKey();
+		for (Entry<ItemWrapper, Integer> entry : getEntrySet()) {
+			ItemStack is = entry.getKey().getItem();
 			Integer amount = entry.getValue();
 			while (amount != 0) {
-				ItemStack toAdd = is.clone();
 				int addAmount = Math.min(amount, is.getMaxStackSize());
-				toAdd.setAmount(addAmount);
-				//log().info("Adding {0} as ItemStack", toAdd.toString());
-				result.add(toAdd);
+				is.setAmount(addAmount);
+				result.add(is);
 				amount -= addAmount;
 			}
 		}
@@ -474,8 +470,8 @@ public class ItemMap {
 	 */
 	public ItemMap clone() {
 		ItemMap clone = new ItemMap();
-		for (Entry<ItemStack, Integer> entry : getEntrySet()) {
-			clone.addItemAmount(entry.getKey(), entry.getValue());
+		for (Entry<ItemWrapper, Integer> entry : getEntrySet()) {
+			clone.addItemWrapper(entry.getKey(), entry.getValue());
 		}
 		return clone;
 	}
@@ -514,14 +510,19 @@ public class ItemMap {
 	 */
 	public List<ItemStack> getLoredItemCountRepresentation() {
 		List<ItemStack> items = new LinkedList<>();
-		for (Entry<ItemStack, Integer> entry : getEntrySet()) {
-			ItemStack is = entry.getKey().clone();
+		for (Entry<ItemWrapper, Integer> entry : getEntrySet()) {
+			ItemStack is = entry.getKey().getGUIRepresentation();
 			ISUtils.addLore(is,
 					ChatColor.GOLD + "Total item count: " + entry.getValue());
-			if (entry.getValue() > entry.getKey().getType().getMaxStackSize()) {
+			StringBuilder out = new StringBuilder();
+			out.append(ChatColor.AQUA);
+			out.append(String.valueOf(entry.getValue()));
+			out.append(" item");
+			out.append(entry.getValue() == 1 ? "" : "s");
+			out.append(" total, which equals ");
+			if (entry.getValue() > is.getType().getMaxStackSize()) {
 				int stacks = entry.getValue() / is.getType().getMaxStackSize();
 				int extra = entry.getValue() % is.getType().getMaxStackSize();
-				StringBuilder out = new StringBuilder(ChatColor.GOLD.toString());
 				if (stacks != 0) {
 					out.append(stacks + " stack" + (stacks == 1 ? "" : "s"));
 				}
@@ -529,7 +530,6 @@ public class ItemMap {
 					out.append(" and " + extra);
 					out.append(" item" + (extra == 1 ? "" : "s"));
 				}
-				ISUtils.addLore(is, out.toString());
 			}
 			items.add(is);
 		}
@@ -544,36 +544,34 @@ public class ItemMap {
 	 * @return True if everything was successfully removed, false if not
 	 */
 	public boolean removeSafelyFrom(Inventory i) {
-		for (Entry<ItemStack, Integer> entry : getEntrySet()) {
-			int amountToRemove = entry.getValue();
-			ItemStack is = entry.getKey();
-			for (ItemStack inventoryStack : i.getContents()) {
-				if (inventoryStack == null) {
+		ItemMap cloneMap = this.clone();
+		int itemsRemoved = 1;
+		while (itemsRemoved > 0 && cloneMap.getTotalItemAmount() != 0) {
+			itemsRemoved = 0;
+			for (ItemStack stack : i.getContents()) {
+				if (i == null) {
 					continue;
 				}
-				if (inventoryStack.getType() == is.getType()) {
-					ItemMap compareMap = new ItemMap(inventoryStack);
-					int removeAmount = Math.min(amountToRemove,
-							compareMap.getAmount(is));
-					if (removeAmount != 0) {
-						ItemStack cloneStack = inventoryStack.clone();
-						cloneStack.setAmount(removeAmount);
-						if (i.removeItem(cloneStack).values().size() != 0) {
-							return false;
-						} else {
-							amountToRemove -= removeAmount;
-							if (amountToRemove <= 0) {
-								break;
-							}
-						}
-					}
+				ItemWrapper mostSpecific = cloneMap.getMostSpecificWrapper(stack);
+				if (mostSpecific == null) {
+					continue;
+				}
+				int amount = items.get(mostSpecific);
+				int toRemove = Math.min(amount, stack.getAmount());
+				itemsRemoved += toRemove;
+				cloneMap.removeItemWrapper(mostSpecific, toRemove);
+				ItemStack cloneStack = stack.clone();
+				cloneStack.setAmount(toRemove);
+				if (!i.removeItem(cloneStack).isEmpty()) {
+					return false;
+				}
+				if (cloneMap.getTotalItemAmount() == 0) {
+					//we are done
+					return true;
 				}
 			}
-			if (amountToRemove > 0) {
-				return false;
-			}
 		}
-		return true;
+		return cloneMap.getTotalItemAmount() == 0;
 	}
 
 	public boolean equals(Object o) {
@@ -635,6 +633,17 @@ public class ItemMap {
 		s.setTag(nbt);
 		copy = CraftItemStack.asBukkitCopy(s);
 		return copy;
+	}
+	
+	public static ItemWrapper createMapConformItemWrapper(ItemStack is) {
+		if (is == null) {
+			return null;
+		}
+		ItemStack conform = createMapConformCopy(is);
+		if (conform == null) {
+			return null;
+		}
+		return new ItemWrapper(conform);
 	}
 
 	public static NBTTagCompound mapToNBT(NBTTagCompound base, Map<String, Object> map) {
