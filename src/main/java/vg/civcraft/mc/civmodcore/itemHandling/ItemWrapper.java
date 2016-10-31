@@ -11,7 +11,20 @@ import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
-public class ItemWrapper implements ConfigurationSerializable {
+/**
+ * Based on a specific ItemStack and various wild cards, this class allows
+ * defining a set of possible ItemStack variations. All checks done by this
+ * class will completly ignore the amount of any ItemStacks involved, the only
+ * things that matter are material, durability and ItemMeta. Note that material
+ * and durability are NOT part of the ItemMeta.
+ * 
+ * Direct usage of this class is possible, but not recommended, use ItemMaps
+ * instead if possible.
+ * 
+ * This class is immutable
+ *
+ */
+public class ItemWrapper implements ConfigurationSerializable, Cloneable {
 
 	private final ItemStack item;
 
@@ -25,22 +38,32 @@ public class ItemWrapper implements ConfigurationSerializable {
 
 	private final boolean wildcardItemMeta;
 
+	private final boolean wildcardNonExplicitItemMeta;
+
+	/**
+	 * Creates an ItemWrapper while setting all wild cards to false, meaning
+	 * only this exact item will be accepted
+	 * 
+	 * @param is
+	 *            ItemStack to base instance on
+	 */
 	public ItemWrapper(ItemStack is) {
-		this(is, false, false, false, false, false);
+		this(is, false, false, false, false, false, false);
 	}
 
 	public ItemWrapper(ItemStack is, boolean wildcardDurability) {
-		this(is, wildcardDurability, false, false, false, false);
+		this(is, wildcardDurability, false, false, false, false, false);
 	}
 
 	public ItemWrapper(ItemStack is, boolean wildcardDurability, boolean wildcardEnchants, boolean wildcardLore,
-			boolean wildcardName, boolean wildcardItemMeta) {
-		this.item = is;
+			boolean wildcardName, boolean wildcardItemMeta, boolean wildcardNonExplicitItemMeta) {
+		this.item = is.clone();
 		this.wildcardDurability = wildcardDurability;
 		this.wildcardEnchants = wildcardEnchants;
 		this.wildcardLore = wildcardLore;
 		this.wildcardName = wildcardName;
 		this.wildcardItemMeta = wildcardItemMeta;
+		this.wildcardNonExplicitItemMeta = wildcardNonExplicitItemMeta;
 	}
 
 	public ItemWrapper(Map<String, Object> serializedMap) {
@@ -50,8 +73,19 @@ public class ItemWrapper implements ConfigurationSerializable {
 		wildcardName = (boolean) serializedMap.get("wildcardName");
 		wildcardEnchants = (boolean) serializedMap.get("wildcardEnchants");
 		wildcardItemMeta = (boolean) serializedMap.get("wildcardItemMeta");
+		wildcardNonExplicitItemMeta = (boolean) serializedMap.get("wildcardNonExplicitItemMeta");
 	}
 
+	/**
+	 * Checks whether the given ItemStack is within the set of ItemStack defined
+	 * by this instance, meaning whether it fulfills the criterias specified
+	 * through wildcards etc.
+	 * 
+	 * @param comp
+	 *            ItemStack to check
+	 * @return True if the given ItemStack fullfills all criterias set by this
+	 *         instance, false if not
+	 */
 	public boolean fulfillsCriterias(ItemStack comp) {
 		if (comp == null) {
 			return false;
@@ -115,6 +149,13 @@ public class ItemWrapper implements ConfigurationSerializable {
 
 		if (compMeta.spigot().isUnbreakable() != originalMeta.spigot().isUnbreakable()) {
 			return false;
+		}
+
+		// we already did all explicit checks here, so if non explicit wild card
+		// is true,
+		// we just assume its valid
+		if (wildcardNonExplicitItemMeta) {
+			return true;
 		}
 
 		// equalize metas in point that were already checked and make them
@@ -197,9 +238,26 @@ public class ItemWrapper implements ConfigurationSerializable {
 				foundSuperior = true;
 			}
 		}
+		// check non specific itemmeta
+		if (comp.isNonSpecficItemMetaWildcarded()) {
+			if (!isNonSpecficItemMetaWildcarded()) {
+				return false;
+			}
+		} else {
+			if (isNonSpecficItemMetaWildcarded()) {
+				foundSuperior = true;
+			}
+		}
 		return foundSuperior;
 	}
 
+	/**
+	 * Gets a representation of this instance, which can be used in GUIs. If
+	 * wildcards are specified, descriptions of those will be appended to the
+	 * returned items lore
+	 * 
+	 * @return GUI representation of this instance
+	 */
 	public ItemStack getGUIRepresentation() {
 		ItemStack is = getItem();
 		if (hasWildcard()) {
@@ -209,8 +267,7 @@ public class ItemWrapper implements ConfigurationSerializable {
 			}
 			if (isItemMetaWildcarded()) {
 				ISUtils.addLore(is, ChatColor.GOLD + "May have any item meta data");
-			}
-			else {
+			} else {
 				if (areEnchantsWildcarded()) {
 					ISUtils.addLore(is, ChatColor.GOLD + "May have any enchants");
 				}
@@ -219,6 +276,9 @@ public class ItemWrapper implements ConfigurationSerializable {
 				}
 				if (isNameWildcarded()) {
 					ISUtils.addLore(is, ChatColor.GOLD + "May have any custom name");
+				}
+				if (isNonSpecficItemMetaWildcarded()) {
+					ISUtils.addLore(is, ChatColor.GOLD + "May have any other NBT tags");
 				}
 			}
 		}
@@ -234,10 +294,18 @@ public class ItemWrapper implements ConfigurationSerializable {
 		return comp.isDurabilityWildcarded() == isDurabilityWildcarded()
 				&& comp.isItemMetaWildcarded() == isItemMetaWildcarded()
 				&& comp.isLoreWildcarded() == isLoreWildcarded() && comp.isNameWildcarded() == isNameWildcarded()
-				&& comp.areEnchantsWildcarded() == areEnchantsWildcarded() && comp.fulfillsCriterias(item)
-				&& fulfillsCriterias(comp.getItem());
+				&& comp.areEnchantsWildcarded() == areEnchantsWildcarded()
+				&& comp.isNonSpecficItemMetaWildcarded() == isNonSpecficItemMetaWildcarded()
+				&& comp.fulfillsCriterias(item) && fulfillsCriterias(comp.getItem());
 	}
 
+	/**
+	 * Gets the durability defined for this ItemWrapper. If durability is
+	 * wildcarded, -1 will always be returned, otherwise if a set durability is
+	 * defined, that will be returned
+	 * 
+	 * @return Lore defined for this instance
+	 */
 	public short getDurability() {
 		if (wildcardDurability) {
 			return -1;
@@ -245,10 +313,21 @@ public class ItemWrapper implements ConfigurationSerializable {
 		return item.getDurability();
 	}
 
+	/**
+	 * @return Whether durability is wildcarded for this instance, meaning it is
+	 *         ignored during checks
+	 */
 	public boolean isDurabilityWildcarded() {
 		return wildcardDurability;
 	}
 
+	/**
+	 * Gets the enchants of this ItemWrapper. If enchants are wildcarded, null
+	 * will always be returned, otherwise if an set of enchants is set, those
+	 * will be returned and if none are set an empty map will be returned
+	 * 
+	 * @return Lore defined for this instance
+	 */
 	public Map<Enchantment, Integer> getEnchants() {
 		if (areEnchantsWildcarded()) {
 			return null;
@@ -260,14 +339,29 @@ public class ItemWrapper implements ConfigurationSerializable {
 		return new HashMap<Enchantment, Integer>();
 	}
 
+	/**
+	 * @return Whether enchants are wildcarded for this instance, meaning any
+	 *         enchants are ignored during checks
+	 */
 	public boolean areEnchantsWildcarded() {
 		return wildcardEnchants || wildcardItemMeta;
 	}
 
+	/**
+	 * @return A copy of the base item around which this instance is based,
+	 *         ignoring any wildcards
+	 */
 	public ItemStack getItem() {
 		return item.clone();
 	}
 
+	/**
+	 * Gets the lore of this ItemWrapper. If the lore is wildcarded, null will
+	 * always be returned, otherwise if an explicit lore is set, it will be
+	 * returned and if none is set an empty list will be returned
+	 * 
+	 * @return Lore defined for this instance
+	 */
 	public List<String> getLore() {
 		if (isLoreWildcarded()) {
 			return null;
@@ -279,6 +373,10 @@ public class ItemWrapper implements ConfigurationSerializable {
 		return new LinkedList<String>();
 	}
 
+	/**
+	 * @return Whether lore is wildcarded for this instance, meaning any lore
+	 *         differences are ignored during checks
+	 */
 	public boolean isLoreWildcarded() {
 		return wildcardLore || wildcardItemMeta;
 	}
@@ -287,6 +385,14 @@ public class ItemWrapper implements ConfigurationSerializable {
 		return wildcardName || wildcardItemMeta;
 	}
 
+	/**
+	 * Gets the display name of this ItemWrapper. If the display name is
+	 * wildcarded, null will always be returned, otherwise if an explicit
+	 * display name is set, it will be returned and if none is set an empty
+	 * string will be returned
+	 * 
+	 * @return Display name of this instance
+	 */
 	public String getName() {
 		if (isNameWildcarded()) {
 			return null;
@@ -298,12 +404,29 @@ public class ItemWrapper implements ConfigurationSerializable {
 		return "";
 	}
 
+	/**
+	 * @return Whether all ItemMeta should be wildcarded, which means that
+	 *         material and durability are the only values checked
+	 */
 	public boolean isItemMetaWildcarded() {
 		return wildcardItemMeta;
 	}
 
+	/**
+	 * @return Whether all other item meta, which doesnt have an explicit toggle
+	 *         here is ignored, meaning basically any item meta, except for
+	 *         display name, enchants and lore
+	 */
+	public boolean isNonSpecficItemMetaWildcarded() {
+		return wildcardNonExplicitItemMeta;
+	}
+
+	/**
+	 * @return Whether any wild cards are set for this instance
+	 */
 	public boolean hasWildcard() {
-		return wildcardDurability || wildcardItemMeta || wildcardEnchants || wildcardLore || wildcardName;
+		return wildcardDurability || wildcardItemMeta || wildcardEnchants || wildcardLore || wildcardName
+				|| wildcardNonExplicitItemMeta;
 	}
 
 	@Override
@@ -315,7 +438,12 @@ public class ItemWrapper implements ConfigurationSerializable {
 		serial.put("wildcardName", wildcardName);
 		serial.put("wildcardEnchants", wildcardEnchants);
 		serial.put("wildcardItemMeta", wildcardItemMeta);
+		serial.put("wildcardNonExplicitItemMeta", wildcardNonExplicitItemMeta);
 		return serial;
 	}
 
+	public ItemWrapper clone() {
+		return new ItemWrapper(getItem(), wildcardDurability, wildcardEnchants, wildcardLore, wildcardName,
+				wildcardItemMeta, wildcardNonExplicitItemMeta);
+	}
 }
