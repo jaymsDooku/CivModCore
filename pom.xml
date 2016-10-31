@@ -1,19 +1,18 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>vg.civcraft.mc.civmodcore</groupId>
   <artifactId>CivModCore</artifactId>
-  <version>1.4.45</version>
+  <version>1.5.10</version>
 
   <name>CivModCore</name>
-  <url>https://github.com/Civcraft/CivModCore/</url>
+  <url>https://github.com/DevotedMC/CivModCore/</url>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <maven.compiler.source>1.7</maven.compiler.source>
-    <maven.compiler.target>1.7</maven.compiler.target>
+    <maven.compiler.source>1.8</maven.compiler.source>
+    <maven.compiler.target>1.8</maven.compiler.target>
   </properties>
 
   <dependencies>
@@ -31,12 +30,30 @@
       <version>R8-SNAPSHOT</version>
       <scope>compile</scope>
     </dependency>
+
+    <dependency>
+      <groupId>vg.civcraft.mc.mercury</groupId>
+      <artifactId>Mercury</artifactId>
+      <version>1.2.16</version>
+      <scope>provided</scope>
+    </dependency>
+    
+    <dependency>
+      <groupId>com.zaxxer</groupId>
+      <artifactId>HikariCP</artifactId>
+      <version>2.4.5</version>
+      <scope>compile</scope>
+    </dependency>
   </dependencies>
 
   <repositories>
     <repository>
       <id>Plugin Metrics</id>
       <url>http://repo.mcstats.org/content/repositories/public</url>
+    </repository>
+    <repository>
+      <id>civcraft-repo</id>
+      <url>https://build.devotedmc.com/plugin/repository/everything/</url>
     </repository>
   </repositories>
 
@@ -51,12 +68,14 @@
           <artifactSet>
             <includes>
               <include>org.mcstats.bukkit:metrics</include>
+              <include>com.zaxxer:HikariCP</include>
+              <include>org.slf4j:slf4j-api</include>
             </includes>
           </artifactSet>
           <relocations>
             <relocation>
               <pattern>org.mcstats</pattern>
-              <shadedPattern>${groupId}</shadedPattern>
+              <shadedPattern>${project.groupId}</shadedPattern>
             </relocation>
           </relocations>
         </configuration>
