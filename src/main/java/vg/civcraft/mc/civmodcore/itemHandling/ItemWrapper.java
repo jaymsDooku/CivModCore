@@ -57,7 +57,7 @@ public class ItemWrapper implements ConfigurationSerializable, Cloneable {
 
 	public ItemWrapper(ItemStack is, boolean wildcardDurability, boolean wildcardEnchants, boolean wildcardLore,
 			boolean wildcardName, boolean wildcardItemMeta, boolean wildcardNonExplicitItemMeta) {
-		this.item = is.clone();
+		this.item = ItemMap.createMapConformCopy(is);
 		this.wildcardDurability = wildcardDurability;
 		this.wildcardEnchants = wildcardEnchants;
 		this.wildcardLore = wildcardLore;

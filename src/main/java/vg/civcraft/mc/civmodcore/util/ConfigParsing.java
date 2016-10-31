@@ -28,6 +28,7 @@ import vg.civcraft.mc.civmodcore.areas.GlobalYLimitedArea;
 import vg.civcraft.mc.civmodcore.areas.IArea;
 import vg.civcraft.mc.civmodcore.areas.RectangleArea;
 import vg.civcraft.mc.civmodcore.itemHandling.ItemMap;
+import vg.civcraft.mc.civmodcore.itemHandling.ItemWrapper;
 
 
 public class ConfigParsing {
@@ -41,6 +42,7 @@ public class ConfigParsing {
 	 * @param config ConfigurationSection to parse the items from
 	 * @return The item map created
 	 */
+	@Deprecated
 	public static ItemMap parseItemMap(ConfigurationSection config) {
 		ItemMap result = new ItemMap();
 		if (config == null) {
@@ -192,8 +194,13 @@ public class ConfigParsing {
 		// which
 		// resets the amount to 1.
 		int amount = current.getInt("amount", 1);
-		toAdd.setAmount(amount);
-		im.addItemStack(toAdd);
+		boolean wildcardDurability = current.getBoolean("wildcardDurability", false);
+		boolean wildcardEnchants = current.getBoolean("wildcardEnchants", false);
+		boolean wildcardLore = current.getBoolean("wildcardLore", false);
+		boolean wildcardName = current.getBoolean("wildcardName", false);
+		boolean wildcardItemMeta = current.getBoolean("wildcardItemMeta", false);
+		boolean wildcardNonExplicitItemMeta = current.getBoolean("wildcardNonExplicitItemMeta");
+		im.addItemWrapper(new ItemWrapper(toAdd, wildcardDurability, wildcardEnchants, wildcardLore, wildcardName, wildcardItemMeta, wildcardNonExplicitItemMeta), amount);
 		return im;
 	}
 

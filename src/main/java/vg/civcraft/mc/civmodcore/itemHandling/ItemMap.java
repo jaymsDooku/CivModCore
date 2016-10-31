@@ -15,6 +15,7 @@ import net.minecraft.server.v1_10_R1.NBTTagList;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.configuration.serialization.ConfigurationSerializable;
 import org.bukkit.craftbukkit.v1_10_R1.inventory.CraftItemStack;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -32,7 +33,7 @@ import org.bukkit.inventory.PlayerInventory;
  * You can use this class without touching ItemWrapper as at all, but at the
  * same time setting up complex wild card system is possible.
  */
-public class ItemMap implements Cloneable {
+public class ItemMap implements ConfigurationSerializable, Cloneable {
 
 	private HashMap<ItemWrapper, Integer> items;
 	private static final Logger log = Bukkit.getLogger();
@@ -84,6 +85,16 @@ public class ItemMap implements Cloneable {
 		items = new HashMap<>();
 		totalItems = 0;
 		addAll(stacks);
+	}
+	
+	@SuppressWarnings("unchecked")
+	public ItemMap(Map<String, Object> serializedMap) {
+		this.items = (HashMap <ItemWrapper, Integer>) serializedMap.get("items");
+		int count = 0;
+		for(Integer i : items.values()) {
+			count += i;
+		}
+		this.totalItems = count;
 	}
 
 	public void addItemWrapper(ItemWrapper wrapper, int amount) {
@@ -729,7 +740,7 @@ public class ItemMap implements Cloneable {
 	 *            Template ItemStack
 	 * @return Cloned ItemStack with its amount set to 1
 	 */
-	private static ItemStack createMapConformCopy(ItemStack is) {
+	public static ItemStack createMapConformCopy(ItemStack is) {
 		ItemStack copy = is.clone();
 		copy.setAmount(1);
 		net.minecraft.server.v1_10_R1.ItemStack s = CraftItemStack.asNMSCopy(copy);
@@ -793,5 +804,13 @@ public class ItemMap implements Cloneable {
 	
 	public static NBTTagList listToNBT(NBTTagList base, List<Object> list) {
 		return TagManager.listToNBT(base, list);
+	}
+
+	@Override
+	public Map<String, Object> serialize() {
+		Map <String, Object> serial = new HashMap<String, Object>();
+		serial.put("items", items);
+		serial.put("totalItems", totalItems);
+		return serial;
 	}
 }
