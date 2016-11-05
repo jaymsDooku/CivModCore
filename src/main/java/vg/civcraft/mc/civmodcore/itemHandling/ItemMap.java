@@ -617,6 +617,61 @@ public class ItemMap implements ConfigurationSerializable, Cloneable {
 	}
 
 	/**
+	 * Removes all items in the given ItemMap from this instance. This does
+	 * respect wildcards as specified in this instance, but not the ones in the
+	 * given ItemMap. If not enough materials are completly cover the given
+	 * ItemMap, nothing is removed and false is returned
+	 * 
+	 * @param im
+	 *            ItemMap whichs content should be removed from this instance
+	 * @return True if everything was removed, false if not
+	 */
+	public boolean reduceBy(ItemMap minusMap) {
+		if (minusMap.isEmpty()) {
+			return true;
+		}
+		if (minusMap.getMultiplesContainedIn(this) <= 0) {
+			return false;
+		}
+		ItemMap minusClone = minusMap.clone();
+		Map<Integer, Map<ItemStack, List<ItemWrapper>>> intersections = calculateIntersections(minusMap);
+		for (int k = 1; !intersections.isEmpty(); k++) {
+			Map<ItemStack, List<ItemWrapper>> mapping = intersections.get(k);
+			if (mapping == null) {
+				continue;
+			}
+			intersections.remove(k);
+			for (Entry<ItemStack, List<ItemWrapper>> entry : mapping.entrySet()) {
+				int amount = minusClone.getAmount(entry.getKey());
+				for (ItemWrapper iw : entry.getValue()) {
+					if (amount == 0) {
+						continue;
+					}
+					int wrapperCount = this.getAmount(iw);
+					if (wrapperCount <= 0) {
+						continue;
+					}
+					int amountToRemove = Math.min(wrapperCount, amount);
+					this.removeItemWrapper(iw, amountToRemove);
+					minusClone.removeItemWrapper(new ItemWrapper(entry.getKey()), amountToRemove);
+					amount -= amountToRemove;
+				}
+				if (amount != 0) {
+					log.warning("Invalid matching trying to reduce map: " + toString() + " reduced by "
+							+ minusMap.toString());
+					return false;
+				}
+			}
+		}
+		if (minusClone.isEmpty()) {
+			log.warning("Invalid matching trying to reduce map, end map not empty: " + toString() + " reduced by "
+					+ minusMap.toString());
+			return false;
+		}
+		return true;
+	}
+
+	/**
 	 * Clones this map
 	 */
 	public ItemMap clone() {
