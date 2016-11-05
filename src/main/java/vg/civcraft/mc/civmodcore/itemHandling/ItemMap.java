@@ -86,12 +86,12 @@ public class ItemMap implements ConfigurationSerializable, Cloneable {
 		totalItems = 0;
 		addAll(stacks);
 	}
-	
+
 	@SuppressWarnings("unchecked")
 	public ItemMap(Map<String, Object> serializedMap) {
-		this.items = (HashMap <ItemWrapper, Integer>) serializedMap.get("items");
+		this.items = (HashMap<ItemWrapper, Integer>) serializedMap.get("items");
 		int count = 0;
-		for(Integer i : items.values()) {
+		for (Integer i : items.values()) {
 			count += i;
 		}
 		this.totalItems = count;
@@ -511,26 +511,26 @@ public class ItemMap implements ConfigurationSerializable, Cloneable {
 	}
 
 	/**
-	 * Checks how often this ItemMap is contained in the given ItemMap or how
-	 * often this ItemMap could be removed from the given one before creating
-	 * negative stacks
+	 * Checks how often this ItemMap is contained in the given one or how often
+	 * this ItemMap could be removed from the given one before creating negative
+	 * stacks
 	 *
 	 * @param i
 	 *            ItemMap to check
-	 * @return How often this map is contained in the given one or
+	 * @return How often this map is contained in the given ItemMap or
 	 *         Integer.MAX_VALUE if this instance is empty
 	 */
-	public int getMultiplesContainedIn(Inventory i) {
+	public int getMultiplesContainedIn(ItemMap invMap) {
 		if (isEmpty()) {
 			// dont divide by 0 kids
 			return Integer.MAX_VALUE;
 		}
-		ItemMap invMap = new ItemMap(i);
 		ItemMap clone;
 		int count = 0;
 		Map<Integer, Map<ItemStack, List<ItemWrapper>>> orig = calculateIntersections(invMap);
 		while (true) {
-			Map<Integer, Map<ItemStack, List<ItemWrapper>>> diff = new TreeMap<Integer, Map<ItemStack,List<ItemWrapper>>>(orig);
+			Map<Integer, Map<ItemStack, List<ItemWrapper>>> diff = new TreeMap<Integer, Map<ItemStack, List<ItemWrapper>>>(
+					orig);
 			clone = this.clone();
 			for (int k = 1; !diff.isEmpty(); k++) {
 				Map<ItemStack, List<ItemWrapper>> mapping = diff.get(k);
@@ -557,11 +557,24 @@ public class ItemMap implements ConfigurationSerializable, Cloneable {
 			}
 			if (clone.isEmpty()) {
 				count++;
-			}
-			else {
+			} else {
 				return count;
 			}
 		}
+	}
+
+	/**
+	 * Checks how often this ItemMap is contained in the given inventory or how
+	 * often this ItemMap could be removed from the given inventory before
+	 * creating negative stacks
+	 *
+	 * @param i
+	 *            Inventory to check
+	 * @return How often this map is contained in the given one or
+	 *         Integer.MAX_VALUE if this instance is empty
+	 */
+	public int getMultiplesContainedIn(Inventory i) {
+		return getMultiplesContainedIn(new ItemMap(i));
 	}
 
 	/**
@@ -713,7 +726,8 @@ public class ItemMap implements ConfigurationSerializable, Cloneable {
 					ItemStack cloneStack = entry.getKey().clone();
 					cloneStack.setAmount(amountToRemove);
 					if (i.removeItem(cloneStack).values().size() > 0) {
-						//could not be removed on the minecraft layer, so we cancel
+						// could not be removed on the minecraft layer, so we
+						// cancel
 						return false;
 					}
 					amount -= amountToRemove;
@@ -753,7 +767,7 @@ public class ItemMap implements ConfigurationSerializable, Cloneable {
 		copy = CraftItemStack.asBukkitCopy(s);
 		return copy;
 	}
-	
+
 	private static ItemWrapper createMapConformItemWrapper(ItemStack is) {
 		if (is == null) {
 			return null;
@@ -797,18 +811,18 @@ public class ItemMap implements ConfigurationSerializable, Cloneable {
 		copy = CraftItemStack.asBukkitCopy(s);
 		return copy;
 	}
-	
+
 	public static NBTTagCompound mapToNBT(NBTTagCompound base, Map<String, Object> map) {
 		return TagManager.mapToNBT(base, map);
 	}
-	
+
 	public static NBTTagList listToNBT(NBTTagList base, List<Object> list) {
 		return TagManager.listToNBT(base, list);
 	}
 
 	@Override
 	public Map<String, Object> serialize() {
-		Map <String, Object> serial = new HashMap<String, Object>();
+		Map<String, Object> serial = new HashMap<String, Object>();
 		serial.put("items", items);
 		serial.put("totalItems", totalItems);
 		return serial;

@@ -195,6 +195,12 @@ public class ConfigParsing {
 		// resets the amount to 1.
 		int amount = current.getInt("amount", 1);
 		boolean wildcardDurability = current.getBoolean("wildcardDurability", false);
+		//support legacy dura wildcard
+		if (durability == -1) {
+			toAdd.setDurability((short) 0);
+			wildcardDurability = true;
+			log.info("You are using legacy wildcards (setting durability to -1) at " + current.getCurrentPath() + " . Consider using explicit wildcards instead");
+		}
 		boolean wildcardEnchants = current.getBoolean("wildcardEnchants", false);
 		boolean wildcardLore = current.getBoolean("wildcardLore", false);
 		boolean wildcardName = current.getBoolean("wildcardName", false);
