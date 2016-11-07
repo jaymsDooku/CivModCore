@@ -743,23 +743,31 @@ public class ItemMap implements ConfigurationSerializable, Cloneable {
 
 	/**
 	 * Attempts to remove the content of this ItemMap from the given inventory.
-	 * If it fails to find all the required items it will stop and return false
+	 * If it fails to find all the required items it will stop and return null.
+	 * If it does succeed, an ItemMap containing all removed items will be
+	 * returned. This is useful, because the actual items removed may very well
+	 * not be completly identical to the ones in this instance due to wild
+	 * cards. To allow for example item transfers, without resetting certain
+	 * aspects of the transferred items due to wildcards, the result of this
+	 * method can be used
 	 *
 	 * @param i
 	 *            Inventory to remove from
-	 * @return True if everything was successfully removed, false if not
+	 * @return ItemMap containing the item stacks removed or null if nothing or only a part of the
+	 *         items was removed
 	 */
-	public boolean removeSafelyFrom(Inventory i) {
+	public ItemMap removeSafelyFrom(Inventory i) {
 		ItemMap invMap = new ItemMap(i);
 		ItemMap clone = this.clone();
+		ItemMap removedItems = new ItemMap();
 		if (!isContainedIn(i)) {
-			return false;
+			return null;
 		}
 		if (invMap.getTotalItemAmount() < clone.getTotalItemAmount()) {
-			return false;
+			return null;
 		}
 		if (isEmpty()) {
-			return true;
+			return removedItems;
 		}
 		Map<Integer, Map<ItemStack, List<ItemWrapper>>> diff = calculateIntersections(invMap);
 		for (int k = 1; !diff.isEmpty(); k++) {
@@ -780,16 +788,17 @@ public class ItemMap implements ConfigurationSerializable, Cloneable {
 					invMap.removeItemWrapper(new ItemWrapper(entry.getKey()), amountToRemove);
 					ItemStack cloneStack = entry.getKey().clone();
 					cloneStack.setAmount(amountToRemove);
+					removedItems.addItemStack(cloneStack);
 					if (i.removeItem(cloneStack).values().size() > 0) {
 						// could not be removed on the minecraft layer, so we
 						// cancel
-						return false;
+						return null;
 					}
 					amount -= amountToRemove;
 				}
 			}
 		}
-		return clone.isEmpty();
+		return clone.isEmpty() ? removedItems : null;
 	}
 
 	public boolean equals(Object o) {
