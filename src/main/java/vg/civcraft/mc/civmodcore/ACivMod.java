@@ -15,7 +15,6 @@ import vg.civcraft.mc.civmodcore.command.StandaloneCommandHandler;
 import vg.civcraft.mc.civmodcore.dao.ManagedDatasource;
 import vg.civcraft.mc.civmodcore.inventorygui.ClickableInventoryListener;
 import vg.civcraft.mc.civmodcore.itemHandling.NiceNames;
-import vg.civcraft.mc.civmodcore.scoreboard.ScoreBoardListener;
 
 public abstract class ACivMod extends JavaPlugin {
 
@@ -54,7 +53,6 @@ public abstract class ACivMod extends JavaPlugin {
 	private void registerEvents() {
 		getServer().getPluginManager().registerEvents(new ClickableInventoryListener(), this);
 		getServer().getPluginManager().registerEvents(new ChatListener(), this);
-		getServer().getPluginManager().registerEvents(new ScoreBoardListener(), this);
 	}
 
 	@Deprecated
